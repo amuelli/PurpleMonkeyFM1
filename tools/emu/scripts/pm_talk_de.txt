@@ -1,0 +1,55 @@
+# PurpleMonkey's German voice, end to end: the pets say their names, TALK says the letters' names
+# (tools/emu/pm_try.sh this script -> build/emu/try/*.wav to hear it)
+wait 300
+shot build/emu/try/de_boot.ppm          # Cat in SYNTH: its name "Katze" said at power-on
+wait 1500
+# the pets say their names (SELECT = PET)
+knob SELECT +1
+wait 200
+shot build/emu/try/de_hund.ppm
+wait 1500
+knob SELECT +1
+wait 200
+shot build/emu/try/de_lama.ppm
+wait 1500
+knob SELECT +1
+wait 200
+shot build/emu/try/de_affe.ppm
+wait 1500
+knob SELECT +1
+wait 200
+shot build/emu/try/de_katze.ppm
+wait 1500
+# TALK: a key says its letter's name (EDIT = TALK)
+btn EDIT
+wait 40
+shot build/emu/try/de_talk.ppm
+btn C4 down                            # H (hah)
+wait 400
+btn C4 up
+wait 300
+btn D4 down                            # J (jot)
+wait 400
+btn D4 up
+wait 300
+btn D5 down                            # V (fau)
+wait 500
+btn D5 up
+wait 300
+btn D#5 down                           # W (weh)
+wait 500
+btn D#5 up
+wait 300
+btn F5 down                            # Y (ypsilon)
+wait 700
+btn F5 up
+wait 300
+btn G5 down                            # the 27th key: Juhu
+wait 700
+btn G5 up
+wait 500
+# back to KEYS (ENV)
+btn ENV
+wait 40
+shot build/emu/try/de_keys.ppm
+wait 500

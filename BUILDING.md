@@ -37,8 +37,9 @@ coding agent working here.
 | `pm_rig.h` | `tools/gen_pm_rig.py` | the pets' rigs: monkey, dog and llama from `assets/purplemonkey/rig-64-modular/`, the cat from `assets/purplemonkey/rig-64-cat-v4/` (the cute face-only revision; its choreography is still `rig-64-modular/moves.json`). Remade when a PNG or JSON in those folders (or `rig/`, `rig-64/`) is newer than the header |
 
 The voice's words are not made by `tools/gen.sh`: `firmware/src/pm_speech_data.h` is in the tree, made by
-`python3 tools/gen_pm_speech.py` (macOS `say`, or `--src DIR` for your own recordings; numpy). Run it again after
-changing the words or the voice, then `sh tests/run_pm_tests.sh` and listen to `build/host/pm_speech.wav`.
+`sh tools/gen_pm_speech_de.sh` (Piper TTS's German Thorsten voice, downloaded into `build/piper`) or, on a Mac,
+`python3 tools/gen_pm_speech.py` (macOS `say`); both also take `--src DIR` for your own recordings. Run it again
+after changing the words or the voice, then `sh tests/run_pm_tests.sh` and listen to `build/host/pm_speech.wav`.
 
 `tools/emu/test_pm.sh` writes its logs, WAVs and screenshots to `build/emu/pm/` (overwritten each run).
 `tools/pm_contact.py OUT.png SHOT.ppm ...` makes a contact sheet of screenshots.
