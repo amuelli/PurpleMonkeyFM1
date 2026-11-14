@@ -3186,10 +3186,10 @@ static int test_bughunt_ui2(void)
 /* L is a sparse face (tools/gen_aa_font.py L_CHARS): every string drawn in it has all its glyphs */
 static int test_large_face(void)
 {
-    static const char *const FIXED[] = {"FELUCCA", "0123456789"};   /* main.c, ui_menu.c; ui_draw.c draw_uboot */
+    static const char *const FIXED[] = {"FELUCCA", "0123456789", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"};   /* main.c, ui_menu.c; ui_draw.c draw_uboot; pm_ui.c TALK's big letter */
     uint32_t i, missing = 0;
     const char *s;
-    for (i = 0; i < NB + NE + 2u; i++)                              /* ui_input.c setup_show: the control names */
+    for (i = 0; i < NB + NE + 3u; i++)                              /* ui_input.c setup_show: the control names */
         for (s = i < NB ? B_NAME[i] : i < NB + NE ? E_NAME[i - NB] : FIXED[i - NB - NE]; *s; s++)
             missing += glyph_at(&AF_L, (uint8_t)*s) < 0;
     return check("the L face holds every glyph of the strings drawn in it", !missing);
