@@ -76,6 +76,7 @@ jobs:
 
       - name: Publish to gh-pages under pr-N/
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           TITLE: ${{ github.event.pull_request.title }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -168,6 +169,7 @@ jobs:
 
       - name: Remove pr-N/ from gh-pages
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
