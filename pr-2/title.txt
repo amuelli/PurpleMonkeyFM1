@@ -1,0 +1,1 @@
+Try the firmware in the browser: serve locally, preview every PR
