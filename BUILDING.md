@@ -112,6 +112,38 @@ site when the package is named `purplemonkey*.fwsc`: the landing page `web/pm_si
 because PurpleMonkey stores nothing), the emulator as `emu/`. The landing page's screens are the emulator's own
 (`web/pm_site/img/`).
 
+## Trying a change in the browser
+
+The browser emulator is the fastest way to *play* a change (it is the same firmware; the headless `pm_try.sh` is
+the fastest way to *check* one). Two routes:
+
+**On this machine**, build-if-needed and serve on localhost:
+
+```
+sh tools/emu/web/serve_pm.sh [PORT]      # -> http://localhost:PORT/ (builds first when a source is newer)
+```
+
+It uses `~/.emsdk` if you have it; `sh tools/linux/setup.sh --emscripten` installs the Emscripten SDK (~1.7 GB) and
+a plain `sh tools/linux/setup.sh` reports whether it is there. The page's sound (an `AudioWorklet`) needs a *secure
+context*, which `localhost` is; a plain `http://LAN-address:PORT` is not, so keep the server on `localhost` and open
+it in the browser that runs on this machine (the in-app browser's `localhost` is the agent's machine), or reach it
+through `ssh -L PORT:localhost:PORT HOST`.
+
+**For every pull request**, `.github/workflows/pr-preview.yml` builds the emulator from the PR head, pushes it to the
+`gh-pages` branch under `pr-N/`, and posts/updates a link on the PR:
+
+```
+https://<owner>.github.io/<repo>/pr-N/
+```
+
+The `gh-pages` branch is served as-is (the page and its files are all relative, so it runs from the subdirectory),
+and a root `index.html` lists every live preview. A PR close removes its directory. The workflow uses the
+`pull_request` event, so it runs the PR's own code and can push only for same-repository PRs (the fork's branches →
+`main`); a PR from an outside fork just fails to publish. To turn it on, once: Settings → Pages → Source:
+**Deploy from a branch**, branch `gh-pages`. This fork has not enabled Pages yet; that source is separate from the
+upstream release site (quixotic7's Pages, built by `pages.yml` under the `github-pages` environment with Source:
+GitHub Actions), so choosing the branch source here does not touch the release site.
+
 ## Releasing
 
 A release is a tag `vX.Y`; GitHub Actions builds it and publishes the site.

@@ -4,7 +4,7 @@
 
 Build a new M-VAVE FM-1 firmware for a young child (roughly one year and up) who enjoys randomly pressing the membrane keyboard, turning knobs, and playing drums. The user has approved the design direction and is handing it off to begin development. Deliver a responsive musical toy/instrument with FM6 synthesis, synthesized drums, four animated animal friends, and music-reactive environments. Start with a working vertical slice, then expand. Do not stop at another planning document.
 
-This document summarizes a design conversation, not an existing implementation. No PurpleMonkey firmware has been developed. Do not mistake static concept artwork or the Designer preview for working firmware. Flashing a physical device, publishing releases, and pushing remote changes require separate user authorization.
+This document summarizes a design conversation, not an existing implementation. No PurpleMonkey firmware has been developed. Do not mistake static concept artwork or the Designer preview for working firmware. Flashing a physical device and publishing releases require separate user authorization. You may push feature branches and open pull requests yourself; merging to `main` still waits on the user.
 
 ## Workspace: important directory distinction
 
