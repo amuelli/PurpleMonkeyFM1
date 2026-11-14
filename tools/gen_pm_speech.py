@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 PurpleMonkey FM-1 contributors
-"""PurpleMonkey's voice: spoken words -> LPC-10 frames -> a C header (firmware/src/pm_speech_data.h).
+"""PurpleMonkey's voice: spoken words -> LPC frames -> a C header (firmware/src/pm_speech_data.h).
 
   tools/gen_pm_speech.py [OUT.h] [--src DIR] [--voice NAME] [--rate WPM] [--word-rate WPM] [--pitch HZ] [--bend B] [--preemph A] [--level N]
 
 The voice is made the way the talking toys of 1978 made theirs: a word is spoken once, analysed here into a few
-numbers every 12.5 ms (how loud, the pitch or "no pitch: a hiss", and ten reflection coefficients that are the shape
-of the mouth), and the instrument plays those numbers back through a ten-stage lattice filter at 8 kHz
-(firmware/src/pm_speech.c). What is in the firmware is about 500 bytes a second of speech, no recording.
+numbers every 12.5 ms (how loud, the pitch or "no pitch: a hiss", and fourteen reflection coefficients that are the
+shape of the mouth), and the instrument plays those numbers back through a fourteen-stage lattice filter at 16 kHz
+(firmware/src/pm_speech.c). What is in the firmware is about 650 bytes a second of speech, no recording.
 The toys had a frame every 25 ms; at that a short word's consonants run into its vowels (a letter's name, one
 long vowel, does not mind), so the frames here are half as long.
 
@@ -18,21 +18,21 @@ Where the spoken words come from:
                 word is trimmed). One voice, close to the microphone, a quiet room.
   otherwise     macOS's `say` speaks them (--voice; --rate the letters, --word-rate the words, slower: said
                 one at a time, clearly), kept in build/speech_src/<voice>/ so a second run
-                does not speak again. This is how the header in the tree was made; see docs/PURPLEMONKEY.md for
-                what that means for a release.
+                does not speak again. The German header in the tree is made by tools/gen_pm_speech_de.sh (Piper TTS,
+                which runs this tool with --src); see docs/PURPLEMONKEY.md for what that means for a release.
 
 The format (all of it written to the header, so pm_speech.c and this file cannot disagree):
   a frame, 12.5 ms energy 4 bits: 0 a silent frame (nothing follows), 15 the end of the word (nothing follows)
                    repeat 1 bit:  1 = the coefficients of the frame before
                    pitch  5 bits: 0 unvoiced (noise), else an index into PM_LPC_PITCH (the period in samples)
-                   k1 .. k10      5 5 4 4 4 4 4 3 3 3 bits, indexes into PM_LPC_K1 .. (unless repeated)
+                   k1 .. k14      5 5 5 5 4 4 4 4 4 4 3 3 3 3 bits, indexes into PM_LPC_K1 .. (unless repeated)
   the tables       a coefficient's levels are evenly spaced in log area ratio over the range the words use; the
                    energies are 3 dB apart; the periods a constant ratio apart
   the excitation   a voiced frame is driven by PM_LPC_CHIRP once a period: an impulse with its frequencies spread
                    out in time (the same energy at every frequency, a far lower peak), designed below; an
                    unvoiced frame by +-PM_LPC_NOISE at random
 No table here is taken from a chip or a ROM: the layout of a frame follows the TMS5100's (but an unvoiced frame
-has all ten coefficients here, not four: a k or a t is clearer for it, at 340 bytes), the numbers are this file's
+has all fourteen coefficients here, not four: a k or a t is clearer for it, at 340 bytes), the numbers are this file's
 and fit these words.
 """
 import argparse
@@ -44,27 +44,27 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-FS = 8000
-FRAME = 100                     # 12.5 ms
+FS = 16000                      # 8 kHz of speech: German's sibilants (s, z, sch, f) reach past 6 kHz
+FRAME = FS // 80                # 12.5 ms
 STEPS = 4                       # pm_speech.c: the steps a frame's values are approached in
-WIN = 200                       # the analysis window, 25 ms, centred on the frame
-ORDER = 10
-KBITS = [5, 5, 4, 4, 4, 4, 4, 3, 3, 3]
+WIN = FS // 40                  # the analysis window, 25 ms, centred on the frame
+ORDER = 14
+KBITS = [5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3]
 LAGWIN = np.exp(-0.5 * (2 * np.pi * 50.0 / FS * np.arange(ORDER + 1)) ** 2)   # every resonance ~50 Hz wider
-PITCH_MIN, PITCH_MAX = 32, 150  # periods in samples: 250 Hz .. 53 Hz
-CHIRP_N = 32
+PITCH_MIN, PITCH_MAX = FS // 250, FS // 53   # periods in samples: 250 Hz .. 53 Hz
+CHIRP_N = 4 * FS // 1000        # the spread impulse, 4 ms
 NOISE = 32
 OUT_SHIFT = 6                   # pm_speech.c: the lattice's output >> this is the sample
 
 # (the enum's name, what the screen may show, what is said). The letters first, A .. Z: pm_speech_letter() counts
 # on it; the pets after YAY in the order of the pets (pm_ui.c: PM_W_MONKEY + pet)
 WORDS = [(c, c, c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"] + [
-    ("YAY", "YAY", "yay"), ("MONKEY", "MONKEY", "monkey"), ("CAT", "CAT", "cat"), ("DOG", "DOG", "dog"),
-    ("LLAMA", "LLAMA", "llama"), ("HELLO", "HELLO", "hello"), ("BYE", "BYE", "bye")]
-SAID = {"Z": "zee"}             # (a British voice would say zed)
+    ("YAY", "JUHU", "Juhu"), ("MONKEY", "AFFE", "Affe"), ("CAT", "KATZE", "Katze"), ("DOG", "HUND", "Hund"),
+    ("LLAMA", "LAMA", "Lama"), ("HELLO", "HALLO", "Hallo"), ("BYE", "TSCHÜSS", "Tschüss")]
+SAID = {}                        # (a German voice says the letters' names itself: Z = Zett, Y = Ypsilon)
 
 
-# ---------------------------------------------------------------- the words, as 8 kHz mono floats ----
+# ---------------------------------------------------------------- the words, resampled to FS ----
 def read_wav(path):
     with wave.open(str(path)) as w:
         if w.getsampwidth() != 2:
@@ -81,9 +81,9 @@ def lowpass(x, fs, fc, taps=127):
     return np.convolve(x, h / h.sum(), "same")
 
 
-def to_8k(x, fs):
+def to_fs(x, fs):
     if fs != FS:
-        x = lowpass(x, fs, 3700.0) if fs > FS else x
+        x = lowpass(x, fs, 0.4625 * FS) if fs > FS else x
         t = np.arange(int(len(x) * FS / fs)) * (fs / FS)
         x = np.interp(t, np.arange(len(x)), x)
     return x - x.mean()
@@ -91,9 +91,9 @@ def to_8k(x, fs):
 
 def trim(x):
     """the word without the silence around it (25 ms kept in front for a stop's burst, 50 ms behind)"""
-    env = np.sqrt(np.convolve(x * x, np.ones(80) / 80, "same"))
+    env = np.sqrt(np.convolve(x * x, np.ones(FS // 100) / (FS // 100), "same"))
     on = np.nonzero(env > env.max() * 0.02)[0]
-    return x[max(0, on[0] - 200):min(len(x), on[-1] + 400)]
+    return x[max(0, on[0] - FS // 40):min(len(x), on[-1] + FS // 20)]
 
 
 def speak(voice, rate, text, path):
@@ -114,7 +114,7 @@ def load_words(args):
             p = ROOT / "build" / "speech_src" / f"{args.voice.split(' ')[0].lower()}-{rate}" / f"{name.lower()}.wav"
             if not p.exists():
                 speak(args.voice, rate, SAID.get(name, text), p)
-        x = trim(to_8k(*read_wav(p)))
+        x = trim(to_fs(*read_wav(p)))
         out.append(x / np.abs(x).max())
     return out
 
@@ -125,7 +125,7 @@ def pitch_track(x):
     20 ms a lag later (short: the pitch of a word said alone falls fast), normalised; the shortest lag near the best
     (a period, not two of them). A stretch the correlation gives up on between two voiced ones, loud and with its
     energy down low, is the voice still: its pitch is drawn across"""
-    pad, w = 400, 160
+    pad, w = FS // 20, FS // 50                                 # 50 ms, 20 ms
     xl = np.concatenate([np.zeros(pad), lowpass(x, FS, 900.0, 63), np.zeros(pad + FRAME)])
     xp = np.concatenate([np.zeros(pad), x, np.zeros(pad + FRAME)])
     nfr = len(x) // FRAME
@@ -140,7 +140,7 @@ def pitch_track(x):
         best = nc.max()
         peaks = [i for i in range(1, len(nc) - 1) if nc[i] >= nc[i - 1] and nc[i] >= nc[i + 1] and nc[i] >= 0.85 * best]
         i = peaks[0] if peaks else int(nc.argmax())
-        full, low = xp[c - 100:c + 100], xl[c - 100:c + 100]
+        full, low = xp[c - WIN // 2:c + WIN // 2], xl[c - WIN // 2:c + WIN // 2]
         rms[n] = np.sqrt(np.mean(full * full))
         lowish[n] = np.dot(low, low) / (np.dot(full, full) + 1e-12)      # a hiss has little under 900 Hz
         per[n], strength[n] = lags[i], best
@@ -229,7 +229,7 @@ def make_chirp():
     in an impulse (so the lattice alone shapes the vowel), the peak a third of an impulse's"""
     n = 128
     k = np.arange(n // 2 + 1)
-    t0, t1 = 2.0, 20.0                                    # group delay at 0 Hz and at 4 kHz, samples
+    t0, t1 = FS // 4000, FS // 400                          # group delay at 0 Hz and at Nyquist, samples
     ph = -(2 * np.pi / n) * (t0 * k + (t1 - t0) * k * k / n)
     spec = np.exp(1j * ph)
     spec[0] = 0
@@ -249,7 +249,7 @@ def quantise(words_frames, ktabs, pitches, chirp, level, pitch_hz, bend):
         peak = max(rms for rms, per, k in fr)
         rows = []
         for rms, per, k in fr:
-            n = 10
+            n = ORDER
             ki = [int(np.abs(lar(ktabs[i]) - lar(k[i])).argmin()) for i in range(n)]
             kq = np.array([ktabs[i][ki[i]] for i in range(n)])
             pi = int(np.abs(np.log(pitches / (mid * (per / med) ** bend))).argmin()) + 1 if per else 0
@@ -302,6 +302,11 @@ def pack(frames):
 
 
 # ---------------------------------------------------------------- the header ----
+def esc(s):
+    """a C string literal's bytes: the UI font indexes glyphs by Latin-1 code, so an umlaut becomes \\xNN"""
+    return "".join(ch if 32 <= ord(ch) < 127 else "\\x{:02X}".format(ord(ch)) for ch in s)
+
+
 def c_array(ctype, name, vals, per_line=16):
     lines = [", ".join(str(int(v)) for v in vals[i:i + per_line]) for i in range(0, len(vals), per_line)]
     return f"static const {ctype} {name}[{len(vals)}] = {{\n    " + ",\n    ".join(lines) + "};\n"
@@ -311,7 +316,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("out", nargs="?", default=str(ROOT / "firmware" / "src" / "pm_speech_data.h"))
     ap.add_argument("--src", help="a folder of your own recordings (a.wav .. bye.wav)")
-    ap.add_argument("--voice", default="Reed (English (US))", help="the `say` voice (say -v '?')")
+    ap.add_argument("--voice", default="Anna (German (Germany))", help="the `say` voice (say -v '?')")
     ap.add_argument("--rate", type=int, default=150, help="`say`'s words a minute for the letters")
     ap.add_argument("--word-rate", type=int, default=80, help="`say`'s words a minute for the words")
     ap.add_argument("--pitch", type=float, default=0, help="move the voice's middle pitch here, Hz (0: as spoken)")
@@ -339,17 +344,17 @@ def main():
     nfr = sum(len(f) for f in coded)
     where = f"recordings in {args.src}" if args.src else f"macOS say, the voice {args.voice}, {args.rate} / {args.word_rate} words a minute (letters / words)"
     h = ["/* SPDX-License-Identifier: GPL-3.0-only\n * Copyright (C) 2026 PurpleMonkey FM-1 contributors */\n",
-         "/* GENERATED by tools/gen_pm_speech.py: do not edit. PurpleMonkey's words as LPC-10 frames for pm_speech.c\n"
+         "/* GENERATED by tools/gen_pm_speech.py: do not edit. PurpleMonkey's words as LPC frames for pm_speech.c\n"
          f" * (the format is described there and in the tool). From: {where}; pre-emphasis {args.preemph}.\n"
          f" * {len(WORDS)} words, {nfr} frames ({nfr * FRAME / FS:.1f} s), {len(data)} bytes. */\n",
          "#ifndef PM_SPEECH_DATA_H\n#define PM_SPEECH_DATA_H\n#include <stdint.h>\n",
          f"#define PM_LPC_FS {FS}u\n#define PM_LPC_FRAME {FRAME}u\n#define PM_LPC_STEPS {STEPS}\n#define PM_LPC_ORDER {ORDER}\n"
          f"#define PM_LPC_CHIRP_N {CHIRP_N}u\n#define PM_LPC_NOISE {NOISE}\n#define PM_LPC_SHIFT {OUT_SHIFT}\n",
          "enum { " + ", ".join(f"PM_W_{n}" for n, _, _ in WORDS) + ", PM_NWORD };\n",
-         "static const char *const PM_WORD_NAME[PM_NWORD] = {" + ", ".join(f'"{s}"' for _, s, _ in WORDS) + "};\n",
+         "static const char *const PM_WORD_NAME[PM_NWORD] = {" + ", ".join(f'"{esc(s)}"' for _, s, _ in WORDS) + "};\n",
          c_array("uint8_t", "PM_LPC_KBITS", KBITS),
          c_array("uint16_t", "PM_LPC_ENERGY", energy),
-         c_array("uint8_t", "PM_LPC_PITCH", np.concatenate([[0], pitches])),
+         c_array("uint16_t", "PM_LPC_PITCH", np.concatenate([[0], pitches])),
          c_array("int8_t", "PM_LPC_CHIRP", chirp)]
     for i, t in enumerate(ktabs):
         h.append(c_array("int16_t", f"PM_LPC_K{i + 1}", np.round(t * 32768)))
@@ -359,7 +364,7 @@ def main():
     h.append("#endif\n")
     Path(args.out).write_text("".join(h))
     print(f"gen_pm_speech: {args.out}: {len(WORDS)} words from {where}: {nfr} frames, {len(data)} bytes of frames; "
-          f"the chirp is flat within {20 * np.log10(spec.max() / spec.min()):.1f} dB from 125 Hz to 3.9 kHz")
+          f"the chirp is flat within {20 * np.log10(spec.max() / spec.min()):.1f} dB from {4 * FS / 256:.0f} Hz to {123 * FS / 256 / 1000:.2f} kHz")
     for (name, _, _), fr in zip(WORDS, coded):
         v = [pitches[f[2] - 1] for f in fr if f and f[2]]
         print(f"  {name:7s} {len(fr) * FRAME * 1000 // FS:4d} ms  " + "".join("." if f is None else "v" if f[2] else "s" for f in fr)

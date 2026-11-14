@@ -4,17 +4,18 @@
  *
  * Linear predictive speech, the way the talking toys of 1978 spoke: each word was said once and analysed (by
  * tools/gen_pm_speech.py, into pm_speech_data.h) into a frame of numbers every 12.5 ms: how loud, the pitch or "no
- * pitch", and ten reflection coefficients, the shape of the mouth. Here those frames are played back at 8 kHz:
+ * pitch", and PM_LPC_ORDER reflection coefficients, the shape of the mouth. Here those frames are played back at
+ * PM_LPC_FS (16 kHz in the tree):
  *   the excitation   a voiced frame: PM_LPC_CHIRP once a pitch period (an impulse with its frequencies spread in
  *                    time); an unvoiced frame: +-PM_LPC_NOISE at random; either times the frame's energy
- *   the mouth        a ten-stage lattice filter of the reflection coefficients (stable for any |k| < 1, so for
- *                    any frame and anything between two frames)
- *   between frames   energy, pitch and coefficients move in a straight line to the next frame's in four steps
- *                    of 25 samples. Not from silence and not between a voiced frame and an unvoiced one: there
+ *   the mouth        a PM_LPC_ORDER-stage lattice filter of the reflection coefficients (stable for any |k| < 1, so
+ *                    for any frame and anything between two frames)
+ *   between frames   energy, pitch and coefficients move in a straight line to the next frame's in PM_LPC_STEPS
+ *                    steps. Not from silence and not between a voiced frame and an unvoiced one: there
  *                    the new frame begins at once (a stop's burst is a burst)
- * and the 8 kHz samples are drawn out to the audio rate PM_SPEECH_FS in straight lines. The frame's layout in bits
- * is in the tool's header comment. Integer arithmetic only (Q15 coefficients, 32-bit states, 64-bit products);
- * ten stages at 8 kHz are about as much work as one FM operator. Nothing here touches the hardware:
+ * and the PM_LPC_FS samples are drawn out to the audio rate PM_SPEECH_FS in straight lines. The frame's layout in
+ * bits is in the tool's header comment. Integer arithmetic only (Q15 coefficients, 32-bit states, 64-bit products);
+ * the fourteen stages at 16 kHz are about as much work as a few FM operators. Nothing here touches the hardware:
  * tests/pm_speech_test.c renders it on a host.
  *
  *   pm_speech_init()                 power-on
@@ -31,7 +32,7 @@
 #define PM_SPEECH_FS 44100u
 #endif
 #define PM_LPC_STEP (PM_LPC_FRAME / PM_LPC_STEPS)         /* samples an interpolation step */
-#define PM_LPC_INC ((uint32_t)(((uint64_t)PM_LPC_FS << 32) / PM_SPEECH_FS))   /* 8 kHz samples an output sample, 0.32 (a constant: no division on the device) */
+#define PM_LPC_INC ((uint32_t)(((uint64_t)PM_LPC_FS << 32) / PM_SPEECH_FS))   /* PM_LPC_FS samples an output sample (a constant: no division on the device) */
 #define PM_SPEECH_CEIL 30000                     /* no sample beyond this (the words are made to peak under it) */
 
 typedef struct { int32_t e, p, k[PM_LPC_ORDER]; } pms_par_t;   /* energy, period (0 unvoiced), coefficients Q15 */
@@ -44,8 +45,8 @@ static struct {
     int32_t b[PM_LPC_ORDER + 1];                 /* the lattice */
     uint32_t pc;                                 /* samples into the pitch period */
     uint32_t rnd;
-    uint32_t ph;                                 /* the 8 kHz sample's phase at the audio rate */
-    int32_t s0, s1;                              /* the 8 kHz samples the output is between */
+    uint32_t ph;                                 /* the PM_LPC_FS sample's phase at the audio rate */
+    int32_t s0, s1;                              /* the PM_LPC_FS samples the output is between */
     int32_t cut;                                 /* where a word was when another cut it: dying away under the new one */
 } spk;
 
@@ -91,7 +92,7 @@ static void pms_interp(void)                     /* the values of this step: (st
     for (i = 0; i < PM_LPC_ORDER; i++)
         spk.now.k[i] = spk.to.e ? spk.from.k[i] + (spk.to.k[i] - spk.from.k[i]) * t / PM_LPC_STEPS : spk.from.k[i];
 }
-/* the next 8 kHz sample; spk.over after the word's last frame */
+/* the next PM_LPC_FS sample; spk.over after the word's last frame */
 static int32_t pms_sample(void)
 {
     int32_t x, i;
@@ -158,7 +159,7 @@ static int pm_speech_render(int32_t *buf, uint32_t n)
         return 0;
     for (i = 0; i < n; i++) {
         uint32_t ph = spk.ph + PM_LPC_INC;
-        if (ph < spk.ph) {                       /* (the phase wrapped: the next 8 kHz sample) */
+        if (ph < spk.ph) {                       /* (the phase wrapped: the next PM_LPC_FS sample) */
             if (spk.over && spk.s1 == 0 && spk.cut == 0) {   /* the word is over and the line has come down to 0 */
                 spk.on = 0;
                 spk.s0 = 0;
