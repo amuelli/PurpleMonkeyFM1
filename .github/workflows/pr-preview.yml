@@ -166,7 +166,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # the PR's merge ref (refs/pull/N/merge) is gone once a PR is closed, so check out the base branch
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
 
       - name: Remove pr-N/ from gh-pages
         env:
