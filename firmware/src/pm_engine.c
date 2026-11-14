@@ -101,10 +101,10 @@ static const pm_tnote_t T_SKIP[] = {
     {E4, Q, 0}, {E4, Q, 0}, {C4, Q, 0}, {C4, Q, 0}, {E4, Q, 0}, {E4, Q, 0}, {G4, H, 0},
     {D4, Q, 7}, {E4, Q, 7}, {F4, Q, 5}, {E4, Q, 7}, {D4, Q, 7}, {D4, Q, 7}, {C4, H, 0}};
 #define TUNE(nm, t) {nm, (uint8_t)(sizeof t / sizeof t[0]), t}
-const pm_tune_t PM_TUNE[PM_NTUNE] = {TUNE("TWINKLE", T_TWINKLE), TUNE("MARY", T_MARY), TUNE("ROW BOAT", T_ROW),
-                                     TUNE("FRERE", T_FRERE), TUNE("MACDONALD", T_MACDONALD), TUNE("LONDON", T_LONDON),
-                                     TUNE("HOT CROSS", T_HOTCROSS), TUNE("ITSY SPIDER", T_ITSY), TUNE("3 MICE", T_MICE),
-                                     TUNE("ODE TO JOY", T_ODE), TUNE("JINGLE", T_JINGLE), TUNE("SKIP TO LOU", T_SKIP)};
+const pm_tune_t PM_TUNE[PM_NTUNE] = {TUNE("STERNE", T_TWINKLE), TUNE("LAMM", T_MARY), TUNE("RUDERN", T_ROW),
+                                     TUNE("JAKOB", T_FRERE), TUNE("MACDONALD", T_MACDONALD), TUNE("LONDON", T_LONDON),
+                                     TUNE("WEGGLI", T_HOTCROSS), TUNE("SPINNE", T_ITSY), TUNE("3 M\xC4USE", T_MICE),
+                                     TUNE("FREUDE", T_ODE), TUNE("JINGLE", T_JINGLE), TUNE("SKIP TO LOU", T_SKIP)};
 /* a pet in a world: three tunes, four apart in the library, so neighbouring pets and worlds share few */
 uint32_t pm_tune_of(uint32_t pet, uint32_t world, uint32_t i)
 {

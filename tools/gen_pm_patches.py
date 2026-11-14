@@ -28,6 +28,11 @@ PETS = ["MONKEY", "CAT", "DOG", "LLAMA"]
 MORPH_KEYS = ["fb", "mlvl", "mrat", "meg", "vmod", "dtun", "len"]
 
 
+def esc(s):
+    """a C string literal's bytes: the UI font indexes glyphs by Latin-1 code, so an umlaut becomes \\xNN"""
+    return "".join(ch if 32 <= ord(ch) < 127 else "\\x{:02X}".format(ord(ch)) for ch in s)
+
+
 def morph(**w):
     """per detent of MORPH: how far each macro moves (fb 1/8 steps, mlvl 1, mrat 1/8, meg 1, vmod 1/8, dtun 1, len 1)"""
     return [int(w.get(k, 0)) for k in MORPH_KEYS]
@@ -56,7 +61,7 @@ BANK = [
          op(r=(99, 70, 50, 50), l=(99, 24, 0, 0), ol=40, fc=3, kvs=3)],
          fb=1),
      morph(mlvl=2, meg=-2, len=1)),   # mellow .. hard mallets
-    ("TOYPIANO", "a tiny upright with tines, bright and a little tinny",
+    ("KLAVIER", "a tiny upright with tines, bright and a little tinny",
      voice("PM TOYPNO", 5, [
          op(r=(99, 42, 28, 40), l=(99, 66, 0, 0), ol=99, kvs=2, rs=3),
          op(r=(99, 60, 40, 48), l=(99, 48, 0, 0), ol=74, fc=3, ff=2, kvs=4, rs=3),
@@ -78,7 +83,7 @@ BANK = [
      morph(mlvl=2, mrat=1, len=1)),   # soft rubber .. ringing metal
 
     # ---- CAT: bars and bells ----
-    ("XYLO", "its xylophone: a wooden tock on a short warm note",
+    ("XYLOPHON", "its xylophone: a wooden tock on a short warm note",
      voice("PM XYLO", 5, [
          op(r=(99, 48, 35, 40), l=(99, 64, 0, 0), ol=99, kvs=2, rs=3),
          op(r=(99, 72, 52, 56), l=(99, 26, 0, 0), ol=70, fc=4, kvs=4, rs=3),
@@ -88,7 +93,7 @@ BANK = [
          op(r=(99, 86, 70, 70), l=(99, 0, 0, 0), ol=44, fc=3, kvs=3)],
          fb=1),
      morph(mlvl=3, len=1)),
-    ("GLOCK", "a glockenspiel: small bright bells",
+    ("GLOCKEN", "a glockenspiel: small bright bells",
      voice("PM GLOCK", 5, [
          op(r=(99, 40, 26, 38), l=(99, 74, 0, 0), ol=97, kvs=2, rs=2),
          op(r=(99, 54, 36, 44), l=(99, 52, 0, 0), ol=64, fc=4, kvs=3, rs=3),
@@ -98,7 +103,7 @@ BANK = [
          op(r=(99, 70, 50, 54), l=(99, 10, 0, 0), ol=42, fc=11, kvs=3)],
          fb=0),
      morph(mlvl=2, mrat=1)),   # glassy .. metallic
-    ("TOYORGAN", "a little reed organ that holds while the key does",
+    ("ORGEL", "a little reed organ that holds while the key does",
      voice("PM TOYORG", 32, [
          op(r=(96, 60, 40, 60), l=(99, 96, 94, 0), ol=92, kvs=1, rs=1),
          op(r=(94, 60, 40, 60), l=(99, 94, 92, 0), ol=78, fc=2, kvs=1, rs=1, det=9),
@@ -108,7 +113,7 @@ BANK = [
          op(r=(86, 60, 40, 60), l=(99, 86, 84, 0), ol=40, fc=8, kvs=1, rs=2)],
          fb=0, lfs=28, lfd=0, lamd=10, lfw=0, lpms=1),
      morph(dtun=6, vmod=0)),   # straight .. wobbly and wide (six carriers: DTUN spreads them)
-    ("HARP", "a small harp: a soft pluck with a long shimmer",
+    ("HARFE", "a small harp: a soft pluck with a long shimmer",
      voice("PM HARP", 5, [
          op(r=(99, 36, 24, 36), l=(99, 70, 0, 0), ol=99, kvs=2, rs=2),
          op(r=(99, 58, 40, 46), l=(99, 40, 0, 0), ol=60, fc=2, kvs=3, rs=3),
@@ -120,7 +125,7 @@ BANK = [
      morph(mlvl=2, dtun=2, len=1)),   # a lute .. a shimmering harp
 
     # ---- DOG: boxes and bells ----
-    ("BELLBOX", "a music box: a soft bell that rings on a little",
+    ("SPIELUHR", "a music box: a soft bell that rings on a little",
      voice("PM BELLBOX", 5, [
          op(r=(99, 40, 28, 36), l=(99, 72, 0, 0), ol=98, kvs=2, rs=2),
          op(r=(99, 50, 34, 40), l=(99, 50, 0, 0), ol=62, fc=3, ff=17, kvs=3, rs=2),
@@ -130,7 +135,7 @@ BANK = [
          op(r=(99, 70, 50, 60), l=(99, 0, 0, 0), ol=46, fc=9, kvs=3)],
          fb=0),
      morph(mlvl=2, len=1)),
-    ("CHIMES", "wind chimes: long bright bells, far apart",
+    ("SCHELLEN", "wind chimes: long bright bells, far apart",
      voice("PM CHIMES", 5, [
          op(r=(99, 30, 20, 32), l=(99, 80, 0, 0), ol=96, kvs=2, rs=1),
          op(r=(99, 44, 30, 40), l=(99, 56, 0, 0), ol=58, fc=3, ff=14, kvs=3, rs=2),
@@ -140,7 +145,7 @@ BANK = [
          op(r=(99, 60, 44, 50), l=(99, 20, 0, 0), ol=44, fc=11, kvs=3)],
          fb=0),
      morph(mlvl=2, mrat=1, len=2)),   # soft tubes .. glass, and how long they ring
-    ("VIBES", "vibraphone: a round bell with a slow wobble",
+    ("VIBRAFON", "vibraphone: a round bell with a slow wobble",
      voice("PM VIBES", 5, [
          op(r=(99, 38, 26, 36), l=(99, 70, 0, 0), ol=98, kvs=2, rs=2),
          op(r=(99, 56, 38, 44), l=(99, 40, 0, 0), ol=56, fc=4, kvs=3, rs=3),
@@ -162,7 +167,7 @@ BANK = [
      morph(fb=4, mlvl=2)),   # soft .. growly (the feedback)
 
     # ---- LLAMA: breath and voices ----
-    ("PIPES", "a breathy pipe that holds for as long as the key does",
+    ("PFEIFEN", "a breathy pipe that holds for as long as the key does",
      voice("PM PIPES", 5, [
          op(r=(72, 30, 24, 46), l=(99, 92, 88, 0), ol=98, kvs=1),
          op(r=(80, 50, 30, 50), l=(99, 60, 44, 0), ol=52, fc=1, kvs=2),
@@ -172,7 +177,7 @@ BANK = [
          op(r=(99, 70, 40, 50), l=(99, 30, 20, 0), ol=50, fc=3, kvs=3)],
          fb=2, lfs=30, lfd=40, lpmd=6, lfw=4, lpms=2),
      morph(mlvl=2, dtun=3)),   # hollow .. reedy and wide
-    ("SOFTPAD", "a slow warm pad that swells in and lingers",
+    ("WOLKE", "a slow warm pad that swells in and lingers",
      voice("PM PAD", 32, [
          op(r=(44, 30, 20, 40), l=(99, 90, 86, 0), ol=90, kvs=1, rs=1),
          op(r=(40, 30, 20, 40), l=(99, 88, 84, 0), ol=84, fc=1, kvs=1, rs=1, det=11),
@@ -182,7 +187,7 @@ BANK = [
          op(r=(48, 30, 20, 40), l=(99, 80, 76, 0), ol=50, fc=4, kvs=1, rs=2, det=9)],
          fb=0, lfs=22, lfd=30, lamd=14, lfw=0, lpms=1),
      morph(dtun=8, len=1)),   # still .. a wide shimmering wash
-    ("FLUTE", "a wooden flute with a little breath at the start",
+    ("FL\u00d6TE", "a wooden flute with a little breath at the start",
      voice("PM FLUTE", 5, [
          op(r=(78, 40, 28, 52), l=(99, 94, 90, 0), ol=98, kvs=1, rs=1),
          op(r=(99, 70, 40, 60), l=(99, 30, 24, 0), ol=48, fc=1, kvs=3),
@@ -192,7 +197,7 @@ BANK = [
          op(r=(99, 90, 60, 70), l=(99, 10, 0, 0), ol=60, fc=11, kvs=4)],
          fb=4, lfs=34, lfd=50, lpmd=5, lfw=0, lpms=2),
      morph(mlvl=2, meg=-2)),   # pure .. breathy with more chiff
-    ("AHH", "a small choir of ahhs, soft and slow",
+    ("CHOR", "a small choir of ahhs, soft and slow",
      voice("PM AHH", 32, [
          op(r=(50, 34, 24, 44), l=(99, 92, 88, 0), ol=92, kvs=1, rs=1),
          op(r=(48, 34, 24, 44), l=(99, 90, 86, 0), ol=86, fc=1, kvs=1, rs=1, det=10),
@@ -207,7 +212,7 @@ BANK = [
 
 def main(path):
     assert len(BANK) == 16, "the bank is four groups of four (pm_engine.h PM_NPRESET)"
-    homes = ["KALIMBA", "XYLO", "BELLBOX", "PIPES"]           # each pet's own sound: first in its group
+    homes = ["KALIMBA", "XYLOPHON", "SPIELUHR", "PFEIFEN"]    # each pet's own sound: first in its group
     for i, h in enumerate(homes):
         assert BANK[i * 4][0] == h, f"{PETS[i]}'s own sound must be preset {i * 4}"
     for name, _, _, m in BANK:
@@ -220,7 +225,7 @@ def main(path):
         L.append("    {" + ", ".join(str(x) for x in pack(v)) + f"}},   /* {name} */")
     L.append("};")
     L.append("static const char *const PM_PRESET_NAME[" + str(len(BANK)) + "] = {" +
-             ", ".join(f'"{n}"' for n, *_ in BANK) + "};")
+             ", ".join(f'"{esc(n)}"' for n, *_ in BANK) + "};")
     L.append("/* TONE per detent: " + ", ".join(MORPH_KEYS) + " (pm_sound.c pm_sound_apply) */")
     L.append(f"static const int8_t PM_MORPH[{len(BANK)}][{len(MORPH_KEYS)}] = {{")
     for name, _, _, m in BANK:
