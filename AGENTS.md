@@ -52,7 +52,9 @@ the art changes; the emulator build does it itself.
 ## Rules
 
 - **Never flash a device, tag, publish a release or push to `main` without the owner saying so.** Install and
-  rollback are in `docs/PURPLEMONKEY.md` ("Install, rollback") and `docs/INSTALL-COMPAT.md`. Work on a branch.
+  rollback are in `docs/PURPLEMONKEY.md` ("Install, rollback") and `docs/INSTALL-COMPAT.md`. You may push a feature
+  branch and open a pull request on your own — that is how a change normally gets in — but the merge to `main`
+  still waits on the owner.
 - **Do not touch** the boot guard, the flash driver, the update loader, USB or the installers
   (`firmware/hal`, `firmware/loader`, `firmware/src/{main,ota*,usb*,cr_bootguard.h}`, `tools/fm1_install.py`,
   `web/fm1ota.js`) unless the task is about them. A mistake there is what bricks a unit; the emulator cannot show it.
