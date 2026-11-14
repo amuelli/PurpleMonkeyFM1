@@ -6,6 +6,7 @@
 # tools/emu/pm_scripts.py (every key in both modes, random playing, the heaviest load). Outputs: build/emu/pm/
 # (overwritten by each run; nothing is deleted).
 # What this checks is the emulator: the same firmware sources on a Mac. Nothing here has run on an FM-1.
+# On Linux the audio block's device estimate is skipped (it needs macOS's instruction counter); the rest runs.
 set -u
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
@@ -15,6 +16,8 @@ OUT=build/emu/pm
 fail=0
 ok()  { echo "  ok    $*"; }
 bad() { echo "  FAIL  $*"; fail=1; }
+skip() { echo "  skip  $*"; skipped=$((skipped + 1)); }
+skipped=0
 num() { sed -n "s/.*$1 \([0-9][0-9]*\).*/\1/p" "$2" | tail -1; }
 
 if [ ! -x "$EMU" ] || [ -n "$(find tools firmware/src tests/hostsim.c -newer "$EMU" \( -name '*.[ch]' -o -name 'gen_*.py' \) 2>/dev/null | head -1)" ]; then
@@ -49,16 +52,21 @@ quiet() {
 # block counts: what every run has in common
 peak_of() { sed -n 's/^cpu: host instructions per 128-frame block.*(\([0-9]*\) % \/ \([0-9]*\) %).*/\2/p' "$1"; }
 cpu() {   # cpu NAME LIMIT SCRIPT
-    pct=$(peak_of "$OUT/$1.log")
-    for again in 2 3; do
-        [ -n "$pct" ] && [ "$pct" -lt "$2" ] && break
-        "$EMU" --headless --script "$3" >"$OUT/$1.cpu$again.log" 2>&1
-        p2=$(peak_of "$OUT/$1.cpu$again.log")
-        [ -n "$p2" ] && { [ -z "$pct" ] || [ "$p2" -lt "$pct" ]; } && pct=$p2
-    done
-    [ -n "$pct" ] && [ "$pct" -lt "$2" ] \
-        && ok "$1: the audio block's device estimate peaks at $pct % of its budget (limit $2 %)" \
-        || bad "$1: the audio block's device estimate peaks at ${pct:-?} % (limit $2 %) on every run"
+    if [ "$(uname -s)" != Darwin ] && ! grep -q '^cpu: host instructions' "$OUT/$1.log"; then
+        # the instruction counter is macOS's (emu.c instr_now): this host gives no estimate to hold to the limit
+        skip "$1: the audio block's device estimate (limit $2 %): no instruction counter on this host, NOT CHECKED"
+    else
+        pct=$(peak_of "$OUT/$1.log")
+        for again in 2 3; do
+            [ -n "$pct" ] && [ "$pct" -lt "$2" ] && break
+            "$EMU" --headless --script "$3" >"$OUT/$1.cpu$again.log" 2>&1
+            p2=$(peak_of "$OUT/$1.cpu$again.log")
+            [ -n "$p2" ] && { [ -z "$pct" ] || [ "$p2" -lt "$pct" ]; } && pct=$p2
+        done
+        [ -n "$pct" ] && [ "$pct" -lt "$2" ] \
+            && ok "$1: the audio block's device estimate peaks at $pct % of its budget (limit $2 %)" \
+            || bad "$1: the audio block's device estimate peaks at ${pct:-?} % (limit $2 %) on every run"
+    fi
     [ "$(num 'voices shed on overload' "$OUT/$1.log")" = 0 ] && ok "$1: no voice shed on overload" || bad "$1: voices shed"
     tm=$(num 'most in a frame' "$OUT/$1.log")
     [ "${tm:-999}" -le 112 ] && ok "$1: at most $tm tiles (of 225) sent to the LCD in a frame" || bad "$1: $tm tiles in a frame"
@@ -119,5 +127,7 @@ cmp -s "$OUT/again/slice.wav" "$OUT/again/slice2.wav" && cmp -s "$OUT/slice.wav"
     && ok "the same audio on every run" || bad "the audio differs between runs"
 cmp -s "$OUT/again/end.ppm" "$OUT/again/end2.ppm" && ok "the same LCD on every run" || bad "the LCD differs between runs"
 
-[ $fail -eq 0 ] && echo "PASS" || echo "FAIL"
+if [ $fail -ne 0 ]; then echo "FAIL"
+elif [ $skipped -ne 0 ]; then echo "PASS ($skipped checks skipped on this host)"
+else echo "PASS"; fi
 exit $fail

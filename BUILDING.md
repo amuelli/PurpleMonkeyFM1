@@ -14,6 +14,19 @@ sh tests/run_pm_tests.sh        # the engine's tests, then tools/emu/test_pm.sh
 build/host/pm_emu --front       # the emulator in a window, with sound
 ```
 
+### On Linux
+
+```
+sh tools/linux/setup.sh         # Debian / Ubuntu: zlib, libfribidi, Pillow 11.1.0 + fontTools 4.66.1 + numpy, SDL2 (dummy drivers)
+sh tests/run_pm_tests.sh        # the same tests; the three audio-cost estimates are skipped (macOS's instruction counter)
+sh tools/emu/pm_try.sh tools/emu/scripts/pm_slice.txt     # one script: build/emu/try/NAME.{log,wav,png}
+```
+
+`tools/emu/build_pm.sh` takes the Linux branch by itself (`tools/emu/linux/`: a pthread mutex for `os_unfair_lock`, no
+MIDI ports). Pillow needs `libfribidi0` for its Raqm layout, or `tools/gen.sh` fails on the fonts. There is no window
+or audio device in a headless session; `--front` and live sound are macOS. `AGENTS.md` is the short guide for a
+coding agent working here.
+
 `tools/gen.sh` regenerates PurpleMonkey's four headers when their generators (or, for the rigs, the art) change:
 
 | Header | Generator | From |
