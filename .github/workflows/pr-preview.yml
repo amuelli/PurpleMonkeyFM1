@@ -97,6 +97,7 @@ jobs:
               "https://x-access-token:${TOKEN}@github.com/${REPO}.git" "$TMP"
           else
             mkdir -p "$TMP" && git -C "$TMP" init -q -b gh-pages
+            git -C "$TMP" remote add origin "https://x-access-token:${TOKEN}@github.com/${REPO}.git"
           fi
 
           rm -rf "$TMP/$PR_DIR"
