@@ -1,0 +1,214 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Publish the browser emulator for every pull request, so a change can be tried in the browser before it is merged.
+#   pull_request (opened/synchronize/reopened) -> build the emulator from the PR head, push it to the gh-pages
+#                                                  branch under pr-N/, post/update a comment on the PR with the link
+#   pull_request (closed)                        -> remove pr-N/ from gh-pages
+# The preview lives at https://<owner>.github.io/<repo>/pr-N/ (the emulator's page and its files are all relative,
+# so it runs from a subdirectory). Pages must serve the gh-pages branch: Settings -> Pages -> Source: "Deploy from a
+# branch", branch "gh-pages". That is separate from the upstream release site (quixotic7's Pages, built by
+# pages.yml), so the fork can use the branch source without affecting it. See BUILDING.md, "Trying a PR in the
+# browser".
+#
+# pull_request runs the PR's own code and its GITHUB_TOKEN can push here only for same-repository PRs (the owner's
+# branches -> main), which is how this fork is developed; a PR from an outside fork just fails to publish.
+name: pr-preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  # the generated headers (fonts with Raqm, samples) must match the firmware's, as release.yml
+  PYTHON_VERSION: "3.11"
+  PILLOW_VERSION: "11.1.0"
+  FONTTOOLS_VERSION: "4.66.1"
+  EMSDK_VERSION: "6.0.11"
+  NODE_VERSION: "22"
+
+jobs:
+  publish:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Python packages (Pillow with Raqm, fontTools)
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends libfribidi0 libraqm0
+          python3 -m pip install --disable-pip-version-check "Pillow==$PILLOW_VERSION" "fonttools==$FONTTOOLS_VERSION"
+          python3 -c 'from PIL import features; import sys; sys.exit(0 if features.check("raqm") else "Pillow has no Raqm layout")'
+
+      - uses: mymindstorm/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+        with:
+          version: ${{ env.EMSDK_VERSION }}
+          actions-cache-folder: emsdk-cache
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build the browser emulator
+        run: |
+          set -euo pipefail
+          emcc --version | head -1
+          python3 -c 'import sys; sys.path.insert(0, "tools"); import build; build.generate()'
+          sh tools/emu/web/build_pm_web.sh
+          node tools/emu/web/test_pm_web_emu.mjs
+
+      - name: Publish to gh-pages under pr-N/
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          TOKEN="$GITHUB_TOKEN"
+          OWNER="${GITHUB_REPOSITORY%/*}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          PR_DIR="pr-$PR"
+          URL="https://$OWNER.github.io/$REPO_NAME"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          TMP="$(mktemp -d)"
+          if git ls-remote --heads origin gh-pages | grep -q refs/heads/gh-pages; then
+            git clone --quiet --depth=1 --branch gh-pages \
+              "https://x-access-token:${TOKEN}@github.com/${REPO}.git" "$TMP"
+          else
+            mkdir -p "$TMP" && git -C "$TMP" init -q -b gh-pages
+          fi
+
+          rm -rf "$TMP/$PR_DIR"
+          mkdir -p "$TMP/$PR_DIR"
+          cp -r build/emu-web-pm/. "$TMP/$PR_DIR/"
+          # the emulator's font is referenced as ../InterTight.woff2 (the branch root)
+          cp web/pm_site/InterTight.woff2 "$TMP/InterTight.woff2"
+          touch "$TMP/.nojekyll"
+          printf '%s\n' "$TITLE" > "$TMP/$PR_DIR/title.txt"
+
+          # a root index listing every published preview
+          python3 - "$TMP" "$PR" "$URL" <<'PY'
+          import json, sys
+          from pathlib import Path
+          root, this, base = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+          links = []
+          for d in sorted(root.glob("pr-*"), key=lambda p: int(p.name[3:]), reverse=True):
+              title = (d / "title.txt").read_text().strip() if (d / "title.txt").is_file() else d.name
+              cur = " &middot; <em>this PR</em>" if d.name == f"pr-{this}" else ""
+              links.append(f'<li><a href="./{d.name}/">{d.name}</a> {title}{cur}</li>')
+          (root / "index.html").write_text("""<!doctype html>
+          <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>PurpleMonkey FM-1 &middot; PR previews</title>
+          <style>body{font:500 16px/1.6 system-ui,sans-serif;background:#080808;color:#d9d5d1;max-width:640px;margin:0 auto;padding:48px 16px}
+          h1{font-size:28px;color:#f6f2ee}a{color:#b48cff}li{margin:10px 0}</style></head>
+          <body><h1>PurpleMonkey FM-1 &middot; PR previews</h1>
+          <p>The browser emulator, built for each pull request. Pick one to try it (sound needs a press of Start):</p>
+          <ul>""" + "".join(links) + "</ul></body></html>\n")
+          print("index regenerated:", len(links), "previews")
+          PY
+
+          cd "$TMP"
+          git add -A
+          git commit -q -m "preview PR #$PR ($HEAD_SHA)" || { echo "gh-pages unchanged"; exit 0; }
+          # a concurrent publish can make this push non-fast-forward: rebase onto it and retry
+          ok=0
+          for i in 1 2 3; do
+            git push --quiet origin gh-pages && { ok=1; break; }
+            echo "::warning::push raced another preview; rebasing and retrying ($i/3)"
+            git pull --quiet --rebase origin gh-pages
+          done
+          [ "$ok" = 1 ] || { echo "::error::could not push gh-pages"; exit 1; }
+          echo "::notice::preview at $URL/$PR_DIR/"
+
+      - name: Comment the link on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          OWNER="${GITHUB_REPOSITORY%/*}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          URL="https://$OWNER.github.io/$REPO_NAME/pr-$PR/"
+          printf -v BODY '<!-- pr-preview:%s -->\n:eyes: **Try this PR in the browser:** [%s](%s)\n(built from %s; refreshed on every push)' "$PR" "$URL" "$URL" "$HEAD_SHA"
+          CID="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq ".[] | select(.body | contains(\"pr-preview:$PR\")) | .id" | head -1)"
+          if [ -n "$CID" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" -f body="$BODY" >/dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$BODY" >/dev/null
+          fi
+
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Remove pr-N/ from gh-pages
+        env:
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          TOKEN="$GITHUB_TOKEN"
+          PR_DIR="pr-$PR"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git ls-remote --heads origin gh-pages | grep -q refs/heads/gh-pages || { echo "no gh-pages branch"; exit 0; }
+
+          TMP="$(mktemp -d)"
+          git clone --quiet --depth=1 --branch gh-pages \
+            "https://x-access-token:${TOKEN}@github.com/${REPO}.git" "$TMP"
+          rm -rf "$TMP/$PR_DIR"
+
+          python3 - "$TMP" <<'PY'
+          import sys
+          from pathlib import Path
+          root = Path(sys.argv[1])
+          links = []
+          for d in sorted(root.glob("pr-*"), key=lambda p: int(p.name[3:]), reverse=True):
+              title = (d / "title.txt").read_text().strip() if (d / "title.txt").is_file() else d.name
+              links.append(f'<li><a href="./{d.name}/">{d.name}</a> {title}</li>')
+          (root / "index.html").write_text("""<!doctype html>
+          <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>PurpleMonkey FM-1 &middot; PR previews</title>
+          <style>body{font:500 16px/1.6 system-ui,sans-serif;background:#080808;color:#d9d5d1;max-width:640px;margin:0 auto;padding:48px 16px}
+          h1{font-size:28px;color:#f6f2ee}a{color:#b48cff}li{margin:10px 0}</style></head>
+          <body><h1>PurpleMonkey FM-1 &middot; PR previews</h1>
+          <p>The browser emulator, built for each pull request. Pick one to try it:</p>
+          <ul>""" + "".join(links) + "</ul></body></html>\n")
+          PY
+
+          cd "$TMP"
+          git add -A
+          git commit -q -m "remove preview PR #$PR" || { echo "gh-pages unchanged"; exit 0; }
+          ok=0
+          for i in 1 2 3; do
+            git push --quiet origin gh-pages && { ok=1; break; }
+            echo "::warning::push raced another preview; rebasing and retrying ($i/3)"
+            git pull --quiet --rebase origin gh-pages
+          done
+          [ "$ok" = 1 ] || { echo "::error::could not push gh-pages"; exit 1; }
+          echo "::notice::removed pr-$PR/"

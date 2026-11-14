@@ -11,7 +11,12 @@
 #   SDL2  built from source into /usr/local with no video or audio backend but the dummy ones: all the headless
 #         emulator uses (distributions' libsdl2-dev brings some 180 packages of X11, Wayland and audio headers).
 #         A host that already has sdl2-config keeps its own.
+# With --emscripten it also installs the Emscripten SDK (the version pages.yml uses) into ~/emsdk, about 1.7 GB, for
+# the browser emulator (tools/emu/web/serve_pm.sh); without the flag an existing ~/emsdk is only reported.
 set -e
+EMSDK_VERSION=6.0.11
+WANT_EMSDK=
+[ "${1:-}" = "--emscripten" ] && WANT_EMSDK=1
 PILLOW_VERSION=11.1.0
 FONTTOOLS_VERSION=4.66.1
 SDL_VERSION=2.32.10
@@ -70,5 +75,22 @@ else
         && make -j"$(nproc)" >make.log 2>&1) || { echo "setup: SDL2 did not build (see $T/build/*.log)"; trap - EXIT; exit 1; }
     (cd "$T/build" && $SUDO make install >/dev/null)
     say "SDL2 $(sdl2-config --version) installed"
+fi
+if [ -n "$WANT_EMSDK" ]; then
+    if [ -x "$HOME/emsdk/upstream/emscripten/emcc" ] && "$HOME/emsdk/upstream/emscripten/emcc" --version | head -1 | grep -q " $EMSDK_VERSION "; then
+        say "Emscripten $EMSDK_VERSION is there ($HOME/emsdk)"
+    else
+        command -v git >/dev/null 2>&1 || { $SUDO apt-get install -y -q --no-install-recommends git ca-certificates; }
+        say "Emscripten $EMSDK_VERSION into $HOME/emsdk (about 1.7 GB; a few minutes)"
+        [ -d "$HOME/emsdk" ] || git clone --quiet https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
+        (cd "$HOME/emsdk" && ./emsdk install "$EMSDK_VERSION" && ./emsdk activate "$EMSDK_VERSION") \
+            >"${TMPDIR:-/tmp}/emsdk-setup.log" 2>&1 \
+            || { echo "setup: Emscripten did not install (see ${TMPDIR:-/tmp}/emsdk-setup.log)"; exit 1; }
+        say "Emscripten installed"
+    fi
+elif [ -x "$HOME/emsdk/upstream/emscripten/emcc" ]; then
+    say "Emscripten is at $HOME/emsdk (sh tools/emu/web/serve_pm.sh)"
+else
+    say "no Emscripten (only the browser emulator needs it: sh tools/linux/setup.sh --emscripten)"
 fi
 say "done: sh tests/run_pm_tests.sh"

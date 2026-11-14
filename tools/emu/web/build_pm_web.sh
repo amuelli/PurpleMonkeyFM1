@@ -12,7 +12,8 @@ ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 cd "$ROOT"
 if ! command -v emcc >/dev/null 2>&1; then
     for e in "${EMSDK:-}/emsdk_env.sh" "$HOME/emsdk/emsdk_env.sh"; do
-        [ -f "$e" ] && { . "$e" >/dev/null 2>&1; break; }
+        # from its own directory: emsdk_env.sh finds itself that way under dash (Debian's sh) too
+        [ -f "$e" ] && { cd "$(dirname "$e")" && . ./emsdk_env.sh >/dev/null 2>&1; cd "$ROOT"; break; }
     done
 fi
 command -v emcc >/dev/null 2>&1 || { echo "emcc not found: install the Emscripten SDK (~/emsdk)"; exit 1; }
