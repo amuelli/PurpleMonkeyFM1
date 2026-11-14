@@ -76,9 +76,9 @@ static void ui_draw(void)
             char n[2] = {(char)('0' + ui.uboot % 10u), 0};
             pm_uboot_shown = ui.uboot;
             lcd_fill(0, 0, 240, 240, 0);
-            draw_text_box(0, 80, 240, &AF_M, "UPDATE MODE", PM_C_CREAM, 1);
+            draw_text_box(0, 80, 240, &AF_M, "UPDATE-MODUS", PM_C_CREAM, 1);
             draw_text_box(0, 110, 240, &AF_L, n, PM_C_CREAM, 1);
-            draw_text_box(0, 160, 240, &AF_S, "let go to cancel", PM_C_STAR, 1);
+            draw_text_box(0, 160, 240, &AF_S, "Loslassen bricht ab", PM_C_STAR, 1);
         }
         ui.force = 0;
         return;

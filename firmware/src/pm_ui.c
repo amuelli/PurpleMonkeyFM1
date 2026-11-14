@@ -263,12 +263,12 @@ enum { PMG_HILLS, PMG_SEABED, PMG_MOON };
 enum { PMD_NONE, PMD_MOONSTARS, PMD_STARS, PMD_SUN, PMD_PLANET, PMD_SEAWEED };
 struct pm_world { const char *name; uint16_t top, bottom, accent, far, near; uint8_t ground, decor, mover, nmover, note; };
 static const pm_world_t PM_WORLDS[PM_NWORLD] = {
-    {"NIGHT", PM_RGB(24, 16, 66), PM_RGB(78, 48, 128), PM_RGB(110, 70, 170), PM_RGB(48, 32, 102), PM_RGB(30, 20, 72), PMG_HILLS, PMD_MOONSTARS, PMP_FIREFLY, 2, PMP_BUBBLE},
-    {"SEA", PM_RGB(6, 36, 84), PM_RGB(10, 96, 124), PM_RGB(60, 190, 170), PM_RGB(16, 76, 96), PM_RGB(26, 62, 70), PMG_SEABED, PMD_SEAWEED, PMP_FISH, 3, PMP_AIR},
-    {"BALLOONS", PM_RGB(70, 140, 220), PM_RGB(170, 210, 240), PM_RGB(255, 230, 170), PM_RGB(96, 176, 112), PM_RGB(62, 142, 82), PMG_HILLS, PMD_SUN, PMP_CLOUD, 3, PMP_BALLOON},
-    {"SPACE", PM_RGB(4, 2, 18), PM_RGB(26, 10, 54), PM_RGB(120, 60, 200), PM_RGB(78, 74, 92), PM_RGB(54, 50, 66), PMG_MOON, PMD_PLANET, PMP_SHOOT, 1, PMP_STAR},
-    {"MEADOW", PM_RGB(120, 190, 240), PM_RGB(200, 232, 250), PM_RGB(255, 240, 160), PM_RGB(112, 192, 92), PM_RGB(72, 152, 62), PMG_HILLS, PMD_SUN, PMP_BUTTERFLY, 3, PMP_FLOWER},
-    {"SNOW", PM_RGB(16, 24, 60), PM_RGB(92, 112, 164), PM_RGB(200, 220, 255), PM_RGB(192, 202, 232), PM_RGB(152, 166, 212), PMG_HILLS, PMD_STARS, PMP_FLAKE, 5, PMP_PUFF},
+    {"NACHT", PM_RGB(24, 16, 66), PM_RGB(78, 48, 128), PM_RGB(110, 70, 170), PM_RGB(48, 32, 102), PM_RGB(30, 20, 72), PMG_HILLS, PMD_MOONSTARS, PMP_FIREFLY, 2, PMP_BUBBLE},
+    {"MEER", PM_RGB(6, 36, 84), PM_RGB(10, 96, 124), PM_RGB(60, 190, 170), PM_RGB(16, 76, 96), PM_RGB(26, 62, 70), PMG_SEABED, PMD_SEAWEED, PMP_FISH, 3, PMP_AIR},
+    {"BALLONE", PM_RGB(70, 140, 220), PM_RGB(170, 210, 240), PM_RGB(255, 230, 170), PM_RGB(96, 176, 112), PM_RGB(62, 142, 82), PMG_HILLS, PMD_SUN, PMP_CLOUD, 3, PMP_BALLOON},
+    {"WELTALL", PM_RGB(4, 2, 18), PM_RGB(26, 10, 54), PM_RGB(120, 60, 200), PM_RGB(78, 74, 92), PM_RGB(54, 50, 66), PMG_MOON, PMD_PLANET, PMP_SHOOT, 1, PMP_STAR},
+    {"WIESE", PM_RGB(120, 190, 240), PM_RGB(200, 232, 250), PM_RGB(255, 240, 160), PM_RGB(112, 192, 92), PM_RGB(72, 152, 62), PMG_HILLS, PMD_SUN, PMP_BUTTERFLY, 3, PMP_FLOWER},
+    {"SCHNEE", PM_RGB(16, 24, 60), PM_RGB(92, 112, 164), PM_RGB(200, 220, 255), PM_RGB(192, 202, 232), PM_RGB(152, 166, 212), PMG_HILLS, PMD_STARS, PMP_FLAKE, 5, PMP_PUFF},
 };
 /* the sky's colour at row y: the world's top .. bottom, drifting slowly towards its accent in a wave that
  * travels down the sky (the drift: one tile row a tick, so the whole sky washes over in a few seconds) */
@@ -689,7 +689,7 @@ static void pm_pet_move(uint32_t now)
     pm_pet_dirty();
 }
 
-static const char *const PM_KNOB_NAME[PM_NKNOB] = {"SPEED", "BUSY", "BOUNCE", "SQUISH", "SOUND", "TONE", "WOBBLE", "SPACE", "LENGTH", "WORLD"};
+static const char *const PM_KNOB_NAME[PM_NKNOB] = {"TEMPO", "DICHTE", "H\xDCPF", "MATSCH", "KLANG", "TON", "WACKELN", "RAUM", "L\xC4NGE", "WELT"};
 /* the planet's ring: 20 points round an ellipse (28 x 9) */
 static const int8_t PM_RING[20][2] = {{28, 0}, {27, 3}, {23, 5}, {17, 7}, {9, 9}, {0, 9}, {-9, 9}, {-17, 7}, {-23, 5}, {-27, 3},
                                        {-28, 0}, {-27, -3}, {-23, -5}, {-17, -7}, {-9, -9}, {0, -9}, {9, -9}, {17, -7}, {23, -5}, {27, -3}};
@@ -855,7 +855,7 @@ static void pm_scene_paint(int32_t x0, int32_t y0, int32_t w, int32_t h, uint32_
         }
     }
     if (y0 < PM_HUD_H + 4) {                      /* the mode's word, the beat's triangle */
-        const char *m = pu.s_mode == PM_DRUMS ? "DRUMS" : pu.s_style == PM_ST_TUNE ? PM_TUNE[pm_tune_of(pu.s_pet, pu.s_world, pu.s_tune)].name : pu.s_style == PM_ST_TALK ? "TALK" : "SYNTH";
+        const char *m = pu.s_mode == PM_DRUMS ? "TROMMELN" : pu.s_style == PM_ST_TUNE ? PM_TUNE[pm_tune_of(pu.s_pet, pu.s_world, pu.s_tune)].name : pu.s_style == PM_ST_TALK ? "SAGEN" : "SYNTH";
         uint16_t c = pu.s_mode == PM_DRUMS ? PM_C_CORAL : pu.s_style == PM_ST_TUNE ? PM_C_NOTE[0] : pu.s_style == PM_ST_TALK ? PM_C_NOTE[2] : PM_C_TEAL, under = pu.sky[10];
         if (!pu.title_on)
             cv_text_on(8 - x0, 4 - y0, &AF_M, m, c, under);

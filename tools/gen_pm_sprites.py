@@ -33,7 +33,8 @@ BG_TOL = 20
 NIGHT = (22, 18, 46)              # what edge pixels are blended onto (the scene's sky, about)
 BOX = 120                         # a pose fits BOX x BOX
 NCOL = 63                         # + index 0: clear (an index is a byte: more colours cost only the palette)
-PETS = ["MONKEY", "CAT", "DOG", "LLAMA"]
+PETS = ["MONKEY", "CAT", "DOG", "LLAMA"]      # identifiers: the sheet's boxes and the pets' order (pm_engine.h)
+NAMES = ["AFFE", "KATZE", "HUND", "LAMA"]     # what the name title shows (Swiss Standard German)
 POSES = ["HELLO", "PLAY", "TOGETHER"]
 K = 1.254                         # the boxes were read off a 1000 px view of the 1254 px sheet
 BOXES = {
@@ -175,7 +176,7 @@ def main(path, sheet_out=None, names_only=False):
     # --names-only (the firmware's build since the pets are rigs, tools/gen_pm_rig.py): the name titles alone; the
     # whole-pose cut-outs stay reproducible from the sheet (run without it) but are not in the image
     groups = [] if names_only else [(p, [fit(cut(sheet, b, SLACK[p])) for b in BOXES[p]]) for p in PETS]
-    groups.append(("NAMES", [title(p) for p in PETS]))
+    groups.append(("NAMES", [title(p) for p in NAMES]))
     for gi, (name, ims) in enumerate(groups):
         pal, idx = flatten(ims)
         pals.append(pal)
@@ -186,7 +187,7 @@ def main(path, sheet_out=None, names_only=False):
             L.append(f"static const uint8_t PM_SPR_{tag}_D[{len(data)}] = {{" + ",".join(map(str, data)) + "};")
             L.append(f"static const uint16_t PM_SPR_{tag}_R[{len(offs)}] = {{" + ",".join(map(str, offs)) + "};")
             table.append(f"    {{{im.width}, {im.height}, {gi}, {im.width // 2}, PM_SPR_{tag}_R, PM_SPR_{tag}_D}},"
-                         f"   /* {name} {POSES[k] if name != 'NAMES' else PETS[k]} */")
+                         f"   /* {name} {POSES[k] if name != 'NAMES' else NAMES[k]} */")
             back = Image.new("RGB", im.size, NIGHT)
             bp = back.load()
             for y, r in enumerate(rows):
