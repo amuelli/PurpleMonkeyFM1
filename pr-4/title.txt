@@ -1,0 +1,1 @@
+German voice via Piper TTS at 16 kHz / LPC-14
